@@ -72,8 +72,10 @@ class OpenApiController extends Controller
             $operation['security'] = [['bearerAuth' => []]];
         }
 
-        if ($headers = $this->headers($api)) {
-            $operation['parameters'] = $headers;
+        $parameters = array_merge($this->pathParams($api), $this->headers($api));
+
+        if ($parameters) {
+            $operation['parameters'] = $parameters;
         }
 
         if ($api->request_json) {
@@ -108,6 +110,28 @@ class OpenApiController extends Controller
                 'required' => true,
                 'schema' => ['type' => 'string'],
                 'example' => $example,
+            ];
+        }
+        return $params;
+    }
+
+    /**
+     * Ekstrak placeholder {param} pada endpoint sebagai path parameter,
+     * supaya Swagger UI menampilkan field input & menggantinya dengan nilai asli.
+     */
+    private function pathParams(Api $api): array
+    {
+        if (!preg_match_all('/\{([^}]+)\}/', (string) $api->endpoint, $matches)) {
+            return [];
+        }
+
+        $params = [];
+        foreach (array_unique($matches[1]) as $name) {
+            $params[] = [
+                'name' => $name,
+                'in' => 'path',
+                'required' => true,
+                'schema' => ['type' => 'string'],
             ];
         }
         return $params;
