@@ -11,6 +11,10 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', [ProjectController::class, 'index']);
 Route::get('/p/{project}', [ProjectController::class, 'show']);
 Route::get('/p/{project}/openapi', [OpenApiController::class, 'spec']);
+// Proxy untuk Swagger UI "Try it out" (Execute) — meneruskan ke proxy_target.
+// {path?} dengan where '.*' menangkap path bersarang (mis. /v3/reservation/...).
+Route::any('/p/{project}/proxy/{path?}', [OpenApiController::class, 'proxy'])
+    ->where('path', '.*');
 
 // Manage
 Route::get('/manage', [ProjectController::class, 'manage'])->name('manage');

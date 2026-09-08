@@ -11,7 +11,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        // Proxy Swagger UI "Try it out" dipanggil langsung dari browser
+        // (bukan form HTML), jadi bebaskan dari validasi CSRF.
+        $middleware->validateCsrfTokens(except: [
+            'p/*/proxy*',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

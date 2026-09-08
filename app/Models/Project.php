@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Project extends Model
 {
-    protected $fillable = ['name', 'base_url', 'token', 'description'];
+    protected $fillable = ['name', 'base_url', 'token', 'proxy_target', 'description'];
 
     public function groups(): HasMany
     {

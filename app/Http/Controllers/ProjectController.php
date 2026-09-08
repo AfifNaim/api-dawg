@@ -21,7 +21,54 @@ class ProjectController extends Controller
 
     public function show(Project $project): View
     {
-        return view('projects.swagger', ['project' => $project]);
+        $project->load(['groups.apis', 'apis' => function ($q) {
+            $q->whereNull('group_id');
+        }]);
+
+        $apis = $project->groups->flatMap->apis->merge($project->apis)->sortBy('sort_order')->values();
+
+        $apiList = $apis->map(function ($a) {
+            return [
+                'id' => $a->id,
+                'method' => $a->method,
+                'name' => $a->name,
+                'description' => $a->description,
+                'endpoint' => $a->endpoint,
+                'params' => $a->pathParams(),
+                'query' => $a->queryParams(),
+                'body' => $a->request_json ? json_decode($a->request_json, true) : null,
+                'success' => $a->success_response,
+                'error' => $a->error_response,
+            ];
+        })->values()->all();
+
+        // Struktur sidebar: tiap group berisi list API-nya.
+        $groupList = $project->groups->map(function ($g) {
+            return [
+                'id' => $g->id,
+                'name' => $g->name,
+                'apis' => $g->apis->sortBy('sort_order')->values()->map(function ($a) {
+                    return [
+                        'id' => $a->id,
+                        'method' => $a->method,
+                        'name' => $a->name,
+                    ];
+                })->all(),
+            ];
+        })->values()->all();
+
+        // API tanpa group (jika ada)
+        $ungrouped = $project->apis->whereNull('group_id')->sortBy('sort_order')->values()->map(function ($a) {
+            return ['id' => $a->id, 'method' => $a->method, 'name' => $a->name];
+        })->all();
+
+        return view('projects.viewer', [
+            'project' => $project,
+            'apis' => $apis,
+            'apiList' => $apiList,
+            'groupList' => $groupList,
+            'ungrouped' => $ungrouped,
+        ]);
     }
 
     public function create(): View
