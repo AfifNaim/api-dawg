@@ -16,7 +16,7 @@ class ProjectController extends Controller
 
     public function manage(): View
     {
-        return view('projects.manage', ['projects' => Project::with('groups')->get()]);
+        return view('projects.manage', ['projects' => Project::with(['groups', 'environments'])->get()]);
     }
 
     public function show(Project $project): View
@@ -62,12 +62,24 @@ class ProjectController extends Controller
             return ['id' => $a->id, 'method' => $a->method, 'name' => $a->name];
         })->all();
 
+        $envList = $project->environments()->orderBy('sort_order')->get()->map(function ($e) {
+            return [
+                'id' => $e->id,
+                'name' => $e->name,
+                'base_url' => $e->base_url,
+                'token' => $e->token,
+                'proxy_target' => $e->proxy_target,
+            ];
+        })->values()->all();
+
         return view('projects.viewer', [
             'project' => $project,
             'apis' => $apis,
             'apiList' => $apiList,
             'groupList' => $groupList,
             'ungrouped' => $ungrouped,
+            'environments' => $project->environments()->orderBy('sort_order')->get(),
+            'envList' => $envList,
         ]);
     }
 

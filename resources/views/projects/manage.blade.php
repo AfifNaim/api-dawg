@@ -53,6 +53,57 @@
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                     API
                 </a>
+                <button onclick="toggleForm('envPanel{{ $project->id }}')" class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 hover:text-blue-600 px-3 py-1.5 rounded-lg border border-slate-200 hover:border-blue-300">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    Environment ({{ $project->environments->count() }})
+                </button>
+            </div>
+
+            {{-- Environment panel (inline) --}}
+            <div id="envPanel{{ $project->id }}" class="hidden px-6 py-4 bg-slate-50 border-b border-slate-100 space-y-3">
+                <div class="flex items-center justify-between">
+                    <span class="text-sm font-semibold text-slate-700">Environments</span>
+                    <a href="/manage/projects/{{ $project->id }}/environments/create" class="text-xs text-blue-600 hover:underline">+ Environment baru</a>
+                </div>
+
+                @forelse ($project->environments as $env)
+                    <div class="bg-white border rounded-lg p-3">
+                        <form method="POST" action="/manage/projects/{{ $project->id }}/environments/{{ $env->id }}" class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            @csrf @method('PUT')
+                            <div>
+                                <label class="text-[11px] text-slate-500">Nama</label>
+                                <input name="name" value="{{ $env->name }}" required class="w-full text-sm border rounded px-2 py-1">
+                            </div>
+                            <div>
+                                <label class="text-[11px] text-slate-500">Base URL</label>
+                                <input name="base_url" value="{{ $env->base_url }}" required class="w-full text-sm border rounded px-2 py-1 font-mono">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="text-[11px] text-slate-500">Bearer Token</label>
+                                <input name="token" value="{{ $env->token }}" class="w-full text-sm border rounded px-2 py-1 font-mono">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="text-[11px] text-slate-500">Proxy Target (opsional)</label>
+                                <input name="proxy_target" value="{{ $env->proxy_target }}" class="w-full text-sm border rounded px-2 py-1 font-mono">
+                            </div>
+                            <div class="md:col-span-2 flex items-center gap-3">
+                                <label class="text-xs flex items-center gap-1">
+                                    <input type="checkbox" name="is_default" value="1" {{ $env->is_default ? 'checked' : '' }}> Default
+                                </label>
+                                <button type="submit" class="bg-blue-600 text-white text-xs px-3 py-1.5 rounded hover:bg-blue-700">Simpan</button>
+                                <a href="/manage/projects/{{ $project->id }}/environments/{{ $env->id }}/edit" class="text-xs text-slate-500 hover:underline">Edit lengkap</a>
+                            </div>
+                        </form>
+                        <div class="md:col-span-2 flex justify-end -mt-2">
+                            <form method="POST" action="/manage/projects/{{ $project->id }}/environments/{{ $env->id }}" onsubmit="return confirm('Hapus environment?')">
+                                @csrf @method('DELETE')
+                                <button type="submit" class="text-xs text-red-600 hover:underline">Hapus</button>
+                            </form>
+                        </div>
+                    </div>
+                @empty
+                    <p class="text-sm text-slate-400">Belum ada environment. Klik "+ Environment baru".</p>
+                @endforelse
             </div>
 
             {{-- Add group form (hidden) --}}

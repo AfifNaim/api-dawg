@@ -18,4 +18,9 @@ class Project extends Model
     {
         return $this->hasMany(Api::class)->orderBy('sort_order');
     }
+
+    public function environments(): HasMany
+    {
+        return $this->hasMany(Environment::class)->orderBy('sort_order');
+    }
 }

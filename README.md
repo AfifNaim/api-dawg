@@ -106,6 +106,22 @@ lalu api-docs meneruskannya (method, header, body, query) ke `proxy_target` dan 
 | `GET /p/{project}/openapi` | Spec OpenAPI 3 project |
 | `ANY /p/{project}/proxy/{path?}` | Proxy Execute ke `proxy_target` |
 | `/manage` | Halaman kelola project/group/API |
+| `/manage/projects/{project}/environments*` | CRUD Environment per project |
+
+---
+
+## Environments (Konvensi)
+
+Setiap project bisa punya beberapa **environment** (mis. Development / Production), masing-masing menyimpan:
+- `base_url` (tampilan server)
+- `token` (Bearer JWT)
+- `proxy_target` (host asli untuk Execute, opsional)
+
+**Pengaturan ada di dalam project**: di `/manage`, buka card project → klik tombol **Environment** → panel inline berisi daftar env yang bisa diedit langsung (base_url, token, proxy_target, default) atau dibuat/hapus. (Juga ada halaman terpisah `/manage/projects/{id}/environments` untuk CRUD lengkap.)
+
+Di viewer, pilih environment dari dropdown → `base_url`, `token`, dan `proxy_target` berubah **live** (code sample & Execute ikut berubah). Ini menggantikan pengaturan base_url/token statis di level project.
+
+> Field `proxy_target`/`token` di tabel `projects` masih dipakai sebagai fallback bila project belum punya environment.
 
 ---
 

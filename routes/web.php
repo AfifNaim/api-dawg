@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ApiController;
+use App\Http\Controllers\EnvironmentController;
 use App\Http\Controllers\GroupController;
 use App\Http\Controllers\OpenApiController;
 use App\Http\Controllers\PlaygroundController;
@@ -27,6 +28,14 @@ Route::delete('/manage/projects/{project}', [ProjectController::class, 'destroy'
 Route::post('/manage/projects/{project}/groups', [GroupController::class, 'store']);
 Route::put('/manage/groups/{group}', [GroupController::class, 'update']);
 Route::delete('/manage/groups/{group}', [GroupController::class, 'destroy']);
+
+// Environments (per-project)
+Route::get('/manage/projects/{project}/environments', [EnvironmentController::class, 'index'])->name('environments.index');
+Route::get('/manage/projects/{project}/environments/create', [EnvironmentController::class, 'create'])->name('environments.create');
+Route::post('/manage/projects/{project}/environments', [EnvironmentController::class, 'store'])->name('environments.store');
+Route::get('/manage/projects/{project}/environments/{environment}/edit', [EnvironmentController::class, 'edit'])->name('environments.edit');
+Route::put('/manage/projects/{project}/environments/{environment}', [EnvironmentController::class, 'update'])->name('environments.update');
+Route::delete('/manage/projects/{project}/environments/{environment}', [EnvironmentController::class, 'destroy'])->name('environments.destroy');
 
 Route::get('/manage/projects/{project}/apis/create', [ApiController::class, 'create']);
 Route::post('/manage/projects/{project}/apis', [ApiController::class, 'store']);

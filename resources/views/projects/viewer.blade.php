@@ -12,9 +12,19 @@
         </div>
         <div class="text-right text-xs text-slate-400">
             <div>Base URL (tampilan)</div>
-            <div class="font-mono text-slate-600">{{ $project->base_url }}</div>
+            <div class="font-mono text-slate-600" id="active-base-url">{{ $project->base_url }}</div>
             @if($project->proxy_target)
                 <div class="mt-1">Execute &rarr; <span class="font-mono text-emerald-600">{{ $project->proxy_target }}</span></div>
+            @endif
+            @if(count($environments))
+                <div class="mt-2">
+                    <label class="mr-1">Environment:</label>
+                    <select id="env-select" class="border rounded px-1 py-0.5 text-xs text-slate-700">
+                        @foreach($environments as $env)
+                            <option value="{{ $env->id }}" {{ $env->is_default ? 'selected' : '' }}>{{ $env->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
             @endif
         </div>
     </div>
@@ -107,7 +117,10 @@ window.PROJECT = {
     id: @json($project->id),
     token: @json($project->token ?? ''),
     proxyTarget: @json($project->proxy_target ?? ''),
+    baseUrl: @json($project->base_url ?? ''),
 };
+
+window.ENV_LIST = @json($envList);
 </script>
 <script>
 (function () {
@@ -204,15 +217,21 @@ window.PROJECT = {
     }
 
     // ---- Konvensi: auto-generate curl dari param + body + token ----
+    function normPath(p) { return p.startsWith('/') ? p : '/' + p; }
+
     function buildCurl(api) {
         const lines = [];
-        let path = api.endpoint;
+        let path = normPath(api.endpoint);
         const q = [];
         (api.params || []).forEach(p => { path = path.replace('{' + p.name + '}', encodeURIComponent(p.example ?? '{' + p.name + '}')); });
         (api.query || []).forEach(p => { if (p.example !== undefined && p.example !== '') q.push(encodeURIComponent(p.name) + '=' + encodeURIComponent(p.example)); });
 
-        let url = (project.proxyTarget || window.location.origin) + path;
-        if (project.proxyTarget) url = '/p/' + project.id + '/proxy' + path;
+        let url;
+        if (project.proxyTarget) {
+            url = '/p/' + project.id + '/proxy' + path;
+        } else {
+            url = (project.baseUrl || window.location.origin) + path;
+        }
         if (q.length) url += '?' + q.join('&');
 
         let cmd = 'curl -X ' + api.method + ' "' + url + '" \\\n';
@@ -290,12 +309,11 @@ window.PROJECT = {
     }
 
     function buildUrlAndBody() {
-        let path = selected.endpoint;
-        // ganti path params
-        document.querySelectorAll('#api-detail [data-field="params"]').forEach(inp => {
+        let path = normPath(selected.endpoint);
+        // path params
+        document.querySelectorAll('#api-detail [data-field="param"]').forEach(inp => {
             const name = inp.dataset.name;
-            const val = inp.value;
-            path = path.replace('{' + name + '}', encodeURIComponent(val));
+            path = path.replace('{' + name + '}', encodeURIComponent(inp.value));
         });
         // query params
         const qs = [];
@@ -307,7 +325,7 @@ window.PROJECT = {
         if (target) {
             url = '/p/' + project.id + '/proxy' + path + (qs.length ? '?' + qs.join('&') : '');
         } else {
-            url = window.location.origin + path + (qs.length ? '?' + qs.join('&') : '');
+            url = (project.baseUrl || window.location.origin) + path + (qs.length ? '?' + qs.join('&') : '');
         }
         // body
         let body = null;
@@ -368,6 +386,31 @@ window.PROJECT = {
                 g.style.display = visible ? '' : 'none';
             });
         });
+    }
+
+    // Environment switcher (konvensi: ganti base_url / token / proxy live)
+    const envSelect = document.getElementById('env-select');
+    const activeBaseUrl = document.getElementById('active-base-url');
+    if (envSelect && window.ENV_LIST && window.ENV_LIST.length) {
+        function applyEnv(id) {
+            const env = window.ENV_LIST.find(e => e.id == id);
+            if (!env) return;
+            project.token = env.token || '';
+            project.proxyTarget = env.proxy_target || '';
+            project.baseUrl = env.base_url || '';
+            if (activeBaseUrl) activeBaseUrl.textContent = env.base_url;
+            // re-render code sample endpoint yang sedang dipilih
+            if (selected) {
+                const cs = document.getElementById('code-sample');
+                if (cs) cs.textContent = buildCurl(selected);
+            }
+            execOutput.textContent = '';
+            execStatus.textContent = '(environment diubah — coba Execute)';
+            execStatus.className = 'text-xs text-slate-400';
+        }
+        envSelect.addEventListener('change', () => applyEnv(envSelect.value));
+        // terapkan env default saat load
+        applyEnv(envSelect.value);
     }
 
     // pilih API pertama secara default
