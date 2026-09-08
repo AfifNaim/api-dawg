@@ -23,7 +23,10 @@
         {{-- KIRI: daftar API --}}
         <aside class="col-span-12 md:col-span-3 lg:col-span-2">
             <div class="bg-white border rounded-lg p-2 sticky top-2 max-h-[calc(100vh-2rem)] overflow-auto">
-                <div class="text-xs font-semibold text-slate-500 px-2 py-1">Daftar API</div>
+                <div class="text-xs font-semibold text-slate-500 px-2 py-1 flex items-center justify-between">
+                    <span>Daftar API</span>
+                </div>
+                <input id="api-search" type="text" placeholder="Cari API…" class="mx-2 mb-2 w-[calc(100%-1rem)] text-xs border rounded px-2 py-1">
                 <ul id="api-list" class="space-y-3">
                     @foreach($groupList as $group)
                         <li>
@@ -81,16 +84,16 @@
             </div>
         </section>
 
-        {{-- KANAN: contoh response --}}
+        {{-- KANAN: schema response --}}
         <aside class="col-span-12 md:col-span-3 lg:col-span-3">
             <div class="space-y-3 sticky top-2">
                 <div class="bg-white border rounded-lg p-3">
-                    <div class="text-xs font-semibold text-emerald-600 mb-1">Contoh Sukses (200)</div>
-                    <pre id="sample-success" class="json-block text-slate-700 bg-slate-50 rounded p-2 max-h-72 overflow-auto">—</pre>
+                    <div class="text-xs font-semibold text-emerald-600 mb-1">Schema Sukses (200)</div>
+                    <div id="sample-success" class="text-slate-700 max-h-72 overflow-auto">—</div>
                 </div>
                 <div class="bg-white border rounded-lg p-3">
-                    <div class="text-xs font-semibold text-rose-600 mb-1">Contoh Gagal</div>
-                    <pre id="sample-error" class="json-block text-slate-700 bg-slate-50 rounded p-2 max-h-72 overflow-auto">—</pre>
+                    <div class="text-xs font-semibold text-rose-600 mb-1">Schema Gagal</div>
+                    <div id="sample-error" class="text-slate-700 max-h-72 overflow-auto">—</div>
                 </div>
             </div>
         </aside>
@@ -162,13 +165,63 @@ window.PROJECT = {
                 ${renderFields(selected, 'query')}
                 <div class="text-xs font-semibold text-slate-500 mb-1 mt-2">Request Body (JSON)</div>
                 ${renderFields(selected, 'body')}
+            </div>
+            <div class="mt-3">
+                <div class="text-xs font-semibold text-slate-500 mb-1">Code Sample</div>
+                <div class="flex gap-2 text-xs mb-1">
+                    <button type="button" data-sample="curl" class="sample-tab px-2 py-1 rounded bg-slate-100 font-medium">cURL</button>
+                </div>
+                <pre id="code-sample" class="json-block bg-slate-900 text-slate-100 rounded p-3 overflow-auto text-xs"></pre>
+            </div>
+            <div class="mt-3">
+                <div class="text-xs font-semibold text-slate-500 mb-1">Responses</div>
+                <div id="response-catalog" class="flex flex-wrap gap-2 text-xs"></div>
             </div>`;
 
-        sampleSuccess.textContent = selected.success ? pretty(selected.success) : '—';
-        sampleError.textContent = selected.error ? pretty(selected.error) : '—';
+        // Code sample
+        document.getElementById('code-sample').textContent = buildCurl(selected);
+        document.querySelectorAll('.sample-tab').forEach(t => {
+            t.addEventListener('click', () => {
+                document.getElementById('code-sample').textContent = buildCurl(selected);
+            });
+        });
+
+        // Response catalog (status codes)
+        const catalog = document.getElementById('response-catalog');
+        const codes = [];
+        if (selected.success) codes.push({ code: 200, label: '200 Sukses', cls: 'bg-emerald-100 text-emerald-700' });
+        if (selected.error) codes.push({ code: 400, label: '400/422 Gagal', cls: 'bg-rose-100 text-rose-700' });
+        if (!codes.length) codes.push({ code: 200, label: '200 OK', cls: 'bg-slate-100 text-slate-600' });
+        catalog.innerHTML = codes.map(c => `<span class="px-2 py-0.5 rounded ${c.cls}">${c.label}</span>`).join('');
+
+        sampleSuccess.innerHTML = renderSchemaTable(selected.success) +
+            `<details class="mt-2"><summary class="text-[10px] text-slate-400 cursor-pointer">Lihat JSON</summary><pre class="json-block text-slate-700 bg-slate-50 rounded p-2 mt-1 text-[11px]">${esc(pretty(selected.success))}</pre></details>`;
+        sampleError.innerHTML = renderSchemaTable(selected.error) +
+            `<details class="mt-2"><summary class="text-[10px] text-slate-400 cursor-pointer">Lihat JSON</summary><pre class="json-block text-slate-700 bg-slate-50 rounded p-2 mt-1 text-[11px]">${esc(pretty(selected.error))}</pre></details>`;
         execOutput.textContent = '';
         execStatus.textContent = '';
         tryPanel.classList.remove('hidden');
+    }
+
+    // ---- Konvensi: auto-generate curl dari param + body + token ----
+    function buildCurl(api) {
+        const lines = [];
+        let path = api.endpoint;
+        const q = [];
+        (api.params || []).forEach(p => { path = path.replace('{' + p.name + '}', encodeURIComponent(p.example ?? '{' + p.name + '}')); });
+        (api.query || []).forEach(p => { if (p.example !== undefined && p.example !== '') q.push(encodeURIComponent(p.name) + '=' + encodeURIComponent(p.example)); });
+
+        let url = (project.proxyTarget || window.location.origin) + path;
+        if (project.proxyTarget) url = '/p/' + project.id + '/proxy' + path;
+        if (q.length) url += '?' + q.join('&');
+
+        let cmd = 'curl -X ' + api.method + ' "' + url + '" \\\n';
+        cmd += '  -H "Accept: application/json"';
+        if (project.token) cmd += ' \\\n  -H "Authorization: Bearer ' + project.token + '"';
+        if (api.method !== 'GET' && api.body) {
+            cmd += ' \\\n  -H "Content-Type: application/json" \\\n  -d \'' + JSON.stringify(api.body, null, 2) + '\'';
+        }
+        return cmd;
     }
 
     function pretty(raw) {
@@ -179,6 +232,61 @@ window.PROJECT = {
         } catch (e) {
             return String(raw);
         }
+    }
+
+    // ---- Konvensi: schema bertipe, bukan sekadar contoh raw ----
+    function inferType(v) {
+        if (Array.isArray(v)) {
+            const item = v.length ? v[0] : null;
+            return 'array<' + (item === null ? 'any' : inferType(item)) + '>';
+        }
+        if (v === null) return 'any';
+        if (typeof v === 'object') return 'object';
+        if (typeof v === 'number') return Number.isInteger(v) ? 'integer' : 'number';
+        if (typeof v === 'boolean') return 'boolean';
+        if (typeof v === 'string') {
+            // heuristik format umum
+            if (/^\d{4}-\d{2}-\d{2}/.test(v)) return 'string (date)';
+            if (/^\d{4}-\d{2}-\d{2}T/.test(v)) return 'string (datetime)';
+            return 'string';
+        }
+        return 'any';
+    }
+
+    // Render tabel schema dari contoh JSON (field, tipe, required, deskripsi)
+    function renderSchemaTable(raw, opts) {
+        opts = opts || {};
+        if (!raw) {
+            return '<div class="text-xs text-slate-400">Belum ada contoh response untuk endpoint ini.</div>';
+        }
+        let obj;
+        try { obj = typeof raw === 'string' ? JSON.parse(raw) : raw; }
+        catch (e) { return '<div class="text-xs text-rose-500">Contoh response bukan JSON valid.</div>'; }
+
+        if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) {
+            return '<div class="text-xs text-slate-500">Tipe root: <code class="font-mono">' + esc(inferType(obj)) + '</code></div>';
+        }
+
+        const rows = Object.entries(obj).map(([k, v]) => {
+            const type = inferType(v);
+            const required = opts.required && opts.required.includes(k)
+                ? '<span class="text-rose-500 text-[10px]">wajib</span>'
+                : '<span class="text-slate-300 text-[10px]">opsional</span>';
+            return `<tr class="border-t">
+                <td class="py-1 pr-2 align-top font-mono text-xs text-slate-800">${esc(k)}</td>
+                <td class="py-1 pr-2 align-top text-xs text-blue-700 font-mono">${esc(type)}</td>
+                <td class="py-1 align-top">${required}</td>
+            </tr>`;
+        }).join('');
+
+        return `<table class="w-full text-left border-collapse">
+            <thead><tr class="text-[10px] uppercase text-slate-400">
+                <th class="pb-1 font-medium">Field</th>
+                <th class="pb-1 font-medium">Tipe</th>
+                <th class="pb-1 font-medium">Status</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+        </table>`;
     }
 
     function buildUrlAndBody() {
@@ -243,6 +351,24 @@ window.PROJECT = {
         b.addEventListener('click', () => selectApi(parseInt(b.dataset.apiId, 10)));
     });
     document.getElementById('btn-execute').addEventListener('click', execute);
+
+    // Search/filter sidebar (konvensi: pencarian cepat antar endpoint)
+    const searchEl = document.getElementById('api-search');
+    if (searchEl) {
+        searchEl.addEventListener('input', () => {
+            const q = searchEl.value.trim().toLowerCase();
+            document.querySelectorAll('#api-list .api-item').forEach(btn => {
+                const text = btn.textContent.toLowerCase();
+                const li = btn.closest('li');
+                li.style.display = (!q || text.includes(q)) ? '' : 'none';
+            });
+            // sembunyikan grup yang kosong
+            document.querySelectorAll('#api-list > li').forEach(g => {
+                const visible = g.querySelectorAll('li:not([style*="display: none"])').length;
+                g.style.display = visible ? '' : 'none';
+            });
+        });
+    }
 
     // pilih API pertama secara default
     if (apiData.length) selectApi(apiData[0].id);

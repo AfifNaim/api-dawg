@@ -11,9 +11,9 @@ Tujuannya sederhana: satu tempat untuk mendokumentasikan alur API (mis. alur *ex
 - **Multi-project** — setiap project mewakili satu modul/domain API (mis. "Extend Reservation").
 - **Grouping API** — API di dalam project dikelompokkan per *group* (contoh: "Reservation Extend Daily") dan ditampilkan di sidebar kiri.
 - **Viewer 3 kolom**:
-  - **Kiri** — daftar API ber-group.
-  - **Tengah** — detail endpoint (path/query params, request body) + tombol **Execute** + output response.
-  - **Kanan** — contoh response **Sukses (200)** dan **Gagal** yang sudah diisi manual per API.
+  - **Kiri** — daftar API ber-group + **search/filter** cepat.
+  - **Tengah** — detail endpoint (path/query params, request body) + **Code Sample** (auto-generate cURL) + **Response catalog** (status code) + tombol **Execute** + output response.
+  - **Kanan** — **Schema response bertipe** (tabel Field / Tipe / Status wajib-opsional) untuk sukses & gagal, lengkap dengan raw JSON yang bisa dilipat.
 - **Proxy Execute** — tombol Execute meneruskan request ke target asli lewat proxy internal, sehingga endpoint yang hanya reachable dari sisi server (mis. `api.dparagon2.blog` via Valet lokal) tetap bisa dicoba dari Swagger UI / viewer tanpa error *"Load failed"* atau *"Fetch error"*.
 - **Auth otomatis** — jika project punya token (Bearer), token disertakan otomatis saat Execute.
 - **OpenAPI spec** — setiap project mengekspos spec OpenAPI 3 (`/p/{id}/openapi`) yang bisa dipakai Swagger UI atau tool lain.
@@ -113,8 +113,10 @@ lalu api-docs meneruskannya (method, header, body, query) ke `proxy_target` dan 
 
 - File view utama viewer: `resources/views/projects/viewer.blade.php`
 - Generator spec: `app/Http/Controllers/OpenApiController.php` (`spec()` & `proxy()`)
-- Model: `app/Models/{Project,Group,Api}.php`
+- Model: `app/Models/{Project,Group,Api}.php` (Api punya `pathParams()` & `queryParams()`)
 - Field `proxy_target` ditambahkan lewat migration `..._add_proxy_target_to_projects_table.php`
+- **Typed schema** di kolom kanan dihasilkan dari `success_response`/`error_response` (JSON) via fungsi `inferType()` di JS — bukan sekadar raw JSON.
+- **Code sample** (cURL) di-generate otomatis dari method + param + body + token project.
 
 ---
 
